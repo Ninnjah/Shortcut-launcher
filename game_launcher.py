@@ -17,6 +17,10 @@ def check_links(path, refresh):                            # Проверка н
         links_dict = json_read('settings.json')[1]
         print(links_dict)
     elif not os.path.exists('settings.json') or refresh == True:
+        if not os.path.exists(path):
+            os.mkdir(path)
+        else:
+            pass
         links = os.listdir(path)
         links_ = []
         for i in links:
