@@ -1,12 +1,9 @@
 import os
-#import sys
 import time
 import json
-#from PyQt5 import QtWidgets, uic, QtGui, QtCore
 import configparser
-from colorama import Fore, init, Cursor
+from colorama import Fore, init
 import easyTui as tui
-#from design import Ui_MainWindow
 
 def check_links(path, refresh):                            # Проверка наличия ярлыков
     '''
@@ -158,20 +155,9 @@ def main():
             print('You must enter a Number..')
             time.sleep(1)
             main()
-'''
-class Ui(QtWidgets.QMainWindow):
-    def __init__(self):
-        super(Ui, self).__init__()
-
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
-'''
+            
 if __name__ == '__main__':
     init(autoreset=True)
     links = check_links('links', False)
-    #app = QtWidgets.QApplication(sys.argv)  # Новый экземпляр QApplication
-    #window = Ui()  # Создаём объект класса ExampleApp
-    #window.show()  # Показываем окно
-    #app.exec_()  # и запускаем приложение
 
     main()
