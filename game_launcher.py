@@ -1,11 +1,11 @@
 import os
+from win32com.client import Dispatch
 import time
 import json
-import configparser
 from colorama import Fore, init
 import easyTui as tui
 
-def check_links(path, refresh):                            # Проверка наличия ярлыков
+def check_links(path, refresh):                         # Проверка наличия ярлыков
     '''
     Parsing all links in path folder
     and save into list
@@ -41,9 +41,62 @@ def check_links(path, refresh):                            # Проверка н
 
         return links_dict
 
-def json_config(links_list, links_dict):
-    config_list = [links_list, links_dict]
-    json_write('settings.json', config_list)
+def add_shortcut():                                     # Создание ярлыка
+    os.system('cls||clear')
+    print(tui.label('Adding new shortcut'))
+    print(Fore.CYAN + 'Enter path to .exe file: ', end='')
+    wDir = input()
+    if os.path.exists(wDir):
+        if '.exe' in wDir:
+            target = wDir
+            wDir = ''
+            i = target
+            while i[-1] != '\\':
+                i = i[:-1]
+            i = i[:-1]
+            wDir = i
+            link = ''
+            i = target
+            while i[-1] != '\\':
+                link += i[-1]
+                i = i[:-1]
+            i = i[:-1]
+            link = link[::-1]
+            while link[-1] != '.':
+                link = link[:-1]
+            link = link[:-1]
+
+            path = os.path.join("links\\{}.lnk".format(link))
+            icon = target
+
+            shell = Dispatch('WScript.Shell')
+            shortcut = shell.CreateShortCut(path)
+            shortcut.Targetpath = target
+            shortcut.WorkingDirectory = wDir
+            shortcut.IconLocation = icon
+            shortcut.save()
+        else:
+            print(Fore.RED + "Wrong path!\npath must include .exe\n or Enter 'cancel' to cancel add..")
+            time.sleep(1)
+            add_shortcut()
+    elif wDir in ['exit', 'cancel', 'stop', 'ex', 'x']:
+        main()
+    else:
+        print(Fore.RED + "This path doesn't exists!\n or Enter 'cancel' to cancel add..")
+        time.sleep(1)
+        add_shortcut()
+
+def update_links(links_list):
+    links = check_links('links', True)
+    new_links_list = list(links.keys())
+    result = list(set(new_links_list) - set(links_list))
+    for i in result:
+        links_list.append(i)
+    result = list(set(links_list) - set(new_links_list))
+    for i in result:
+        links_list.pop(links_list.index(i))
+    result = None
+    json_config(links_list, links)
 
 def json_read(file):                                    # Чтение JSON
     with open(file, "r", encoding='utf-8') as read_file:
@@ -53,6 +106,10 @@ def json_read(file):                                    # Чтение JSON
 def json_write(file, data):                             # Запись JSON
     with open(file, 'w', encoding='utf-8') as write_file:
         write_file.write(json.dumps(data))
+
+def json_config(links_list, links_dict):                # Сохранение настроек
+    config_list = [links_list, links_dict]
+    json_write('settings.json', config_list)
 
 def run(app):
     os.startfile(os.path.join('links', app))
@@ -79,16 +136,7 @@ def main():
             time.sleep(.5)
             quit()
         elif cmd.lower() in ['update', 'refresh', 'upd']:
-            links = check_links('links', True)
-            new_links_list = list(links.keys())
-            result = list(set(new_links_list) - set(links_list))
-            for i in result:
-                links_list.append(i)
-            result = list(set(links_list) - set(new_links_list))
-            for i in result:
-                links_list.pop(links_list.index(i))
-            result = None
-            json_config(links_list, links)
+            update_links(links_list)
             main()
         elif cmd.lower() in ['steam']:
             print('Starting {}...'.format(cmd))
@@ -130,12 +178,9 @@ def main():
                 print('Removing canceled..')
                 time.sleep(1)
                 main()
-
         elif cmd.lower() in ['links', 'lnk', 'folder']:
             print('Opening {}...'.format(cmd))
-            print(os.getcwd())
             os.system("explorer.exe {}".format(os.getcwd() + '\\links'))
-            print("explorer.exe {}".format(os.getcwd() + '\\links'))
             time.sleep(10)
             main()
         elif cmd.lower() in ['sort']:
@@ -151,11 +196,15 @@ def main():
                 print('You must enter numbers..')
                 time.sleep(2)
                 main()
+        elif cmd.lower() in ['add', 'create', 'make']:
+            add_shortcut()
+            update_links(links_list)
+            main()
         else:
             print('You must enter a Number..')
             time.sleep(1)
             main()
-            
+
 if __name__ == '__main__':
     init(autoreset=True)
     links = check_links('links', False)
