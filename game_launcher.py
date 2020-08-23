@@ -1,17 +1,31 @@
 import os
-from win32com.client import Dispatch
 import time
 import json
+from win32com.client import Dispatch
 from colorama import Fore, init
 import easyTui as tui
 
-def check_links(path, refresh):                         # Проверка наличия ярлыков
+class Json():                                           # Функции JSON
+    def read(file):                                     ## Чтение JSON
+        with open(file, "r", encoding='utf-8') as read_file:
+            data = json.load(read_file)
+        return data
+
+    def write(file, data):                              ## Запись JSON
+        with open(file, 'w', encoding='utf-8') as write_file:
+            write_file.write(json.dumps(data))
+
+    def config(links_list, links_dict):                 ## Сохранение настроек
+        config_list = [links_list, links_dict]
+        Json.write('settings.json', config_list)
+
+def load_links(path, refresh):                          # Загрузка ярлыков
     '''
     Parsing all links in path folder
     and save into list
     '''
     if os.path.exists('settings.json') and refresh == False:
-        links_dict = json_read('settings.json')[1]
+        links_dict = Json.read('settings.json')[1]
         print(links_dict)
     elif not os.path.exists('settings.json') or refresh == True:
         if not os.path.exists(path):
@@ -24,7 +38,11 @@ def check_links(path, refresh):                         # Проверка на�
             if '.url' in i or '.lnk' in i:
                 links_.append(i)
         if len(links_) == 0:
-            quit()
+            print(Fore.RED + "You don't have any shortcuts in the folder!\n")
+            input('Press enter')
+            Json.write('settings.json', [[],{}])
+            time.sleep(1)
+            main()
         links = []
         for i in links_:
             while i[-1] != '.':
@@ -37,7 +55,7 @@ def check_links(path, refresh):                         # Проверка на�
             links_dict.setdefault(links[i], links_[i])
 
         links_list = list(links_dict.keys())
-        json_config(links_list, links_dict)
+        Json.config(links_list, links_dict)
 
         return links_dict
 
@@ -86,8 +104,35 @@ def add_shortcut():                                     # Создание яр�
         time.sleep(1)
         add_shortcut()
 
-def update_links(links_list):
-    links = check_links('links', True)
+def remove_shortcut(links_list):                        # Удаление ярлыка
+    index = input('Enter index: ')
+    if index in ['ex', 'cancel', 'stop']:
+        main()
+    else:
+        try:
+            index = int(index)
+        except ValueError:
+            print('You must enter a number or "cancel" to cancel deleting..')
+            time.sleep(2)
+            remove_shortcut(links_list)
+
+    print(Fore.RED + 'Do you really want to delete "{}"?'.format(
+        links_list[index]))
+    com = input()
+
+    if com in ['yes', 'y', 'yeah']:
+        print('Removing {}...'.format(links_list[index]))
+        os.remove('links\\' + links[links_list[index]])
+        links_list.pop(index)
+        Json.config(links_list, links)
+        time.sleep(1)
+        main()
+    else:
+        print('Removing canceled..')
+        time.sleep(1)
+
+def update_links(links_list):                           # Обновление списка ярлыков
+    links = load_links('links', True)
     new_links_list = list(links.keys())
     result = list(set(new_links_list) - set(links_list))
     for i in result:
@@ -96,33 +141,39 @@ def update_links(links_list):
     for i in result:
         links_list.pop(links_list.index(i))
     result = None
-    json_config(links_list, links)
+    Json.config(links_list, links)
 
-def json_read(file):                                    # Чтение JSON
-    with open(file, "r", encoding='utf-8') as read_file:
-        data = json.load(read_file)
-    return data
+def sort_links(links_list):                             # Перемещение ярлыков в списке
+    from_ = input('from index: ')
+    if from_ in ['exit', 'cancel', 'stop', 'ex', 'x']:
+        main()
+    to_ =  input('to index: ')
+    if to_ in ['exit', 'cancel', 'stop', 'ex', 'x']:
+        main()
+    try:
+        from_, to_ = int(from_), int(to_)
+        links_list[from_], links_list[to_] = links_list[to_], links_list[from_]
+        
+        Json.config(links_list, links)
+    except ValueError:
+        print('You must enter numbers..\n or Enter "cancel" to cancel sort..')
+        time.sleep(2)
+        sort_links(links_list)
 
-def json_write(file, data):                             # Запись JSON
-    with open(file, 'w', encoding='utf-8') as write_file:
-        write_file.write(json.dumps(data))
-
-def json_config(links_list, links_dict):                # Сохранение настроек
-    config_list = [links_list, links_dict]
-    json_write('settings.json', config_list)
-
-def run(app):
+def run(app):                                           # Запуск приложения
     os.startfile(os.path.join('links', app))
     
-def main():
-    version = '0.5 beta'
-    json_ = json_read('settings.json')
+def main():                                             # Интерфейс
+    json_ = Json.read('settings.json')
     links_list = json_[0]
     links = json_[1]
 
     os.system('cls||clear')
     print(tui.label('Game Launcher v{}'.format(version)))
-    print(Fore.CYAN + tui.ol(links_list))
+    if len(links_list) > 0:
+        print(Fore.CYAN + tui.ol(links_list))
+    else:
+        print(Fore.CYAN + tui.ul(["You can add them with 'add' command", "or manualy add shortcuts in 'links' folder\n  You can open folder with 'links' command"]))
     cmd = input('Enter number: ')
     try:
         cmd = int(cmd)
@@ -149,64 +200,43 @@ def main():
             time.sleep(2)
             main()
         elif cmd.lower() in ['remove', 'delete', 'rm']:
-            def check(index):
-                if index in ['ex', 'cancel', 'stop']:
-                    main()
-                else:
-                    try:
-                        index = int(index)
-                    except ValueError:
-                        print('You must enter a number or "cancel" to cancel deleting..')
-                        time.sleep(2)
-                        check(index)
-                return index
-
-            index = input('Enter index: ')
-            index = check(index)
-            print(Fore.RED + 'Do you really want to delete "{}"?'.format(
-                links_list[index]))
-            com = input()
-
-            if com in ['yes', 'y', 'yeah']:
-                print('Removing {}...'.format(links_list[index]))
-                os.remove('links\\' + links[links_list[index]])
-                links_list.pop(index)
-                json_config(links_list, links)
-                time.sleep(1)
-                main()
-            else:
-                print('Removing canceled..')
-                time.sleep(1)
-                main()
+            remove_shortcut(links_list)
+            main()
         elif cmd.lower() in ['links', 'lnk', 'folder']:
             print('Opening {}...'.format(cmd))
             os.system("explorer.exe {}".format(os.getcwd() + '\\links'))
-            time.sleep(10)
+            time.sleep(1)
             main()
-        elif cmd.lower() in ['sort']:
-            from_ = input('from index: ')
-            to_ =  input('to index: ')
-            try:
-                from_, to_ = int(from_), int(to_)
-                links_list[from_], links_list[to_] = links_list[to_], links_list[from_]
-                
-                json_config(links_list, links)
-                main()
-            except ValueError:
-                print('You must enter numbers..')
-                time.sleep(2)
-                main()
-        elif cmd.lower() in ['add', 'create', 'make']:
+        elif cmd.lower() in ['sort', 'move']:
+            sort_links(links_list)
+            main()
+        elif cmd.lower() in ['add', 'create', 'make', 'mk']:
             add_shortcut()
             update_links(links_list)
+            main()
+        elif cmd.lower() in ['help']:
+            os.system('cls||clear')
+            command_list = [
+                '"exit" ("quit", "ex", "x")\n\tUsing to quit the program',
+                '"update" ("refresh", "upd")\n\tUsing to update shortcut list',
+                '"remove" ("delete", "rm")\n\tUsing to delete app shortcut',
+                '"add" ("create", "make", "mk")\n\tUsing to add new shortcut',
+                '"sort" ("move")\n\tUsing to move shortcut in list',
+                '"links" ("folder", "lnk")\n\tUsing to open shortcuts folder',
+                '"steam"\n\tUsing to start steam from "links/sys/steam.lnk"',
+                '"epic" ("epic games")\n\tUsing to start Epic games store from "links/sys/epic.lnk"',]
+            print(tui.label('Help'))
+            print(Fore.CYAN + tui.ul(command_list))
+            input('Press enter to go to main menu')
             main()
         else:
             print('You must enter a Number..')
             time.sleep(1)
             main()
 
-if __name__ == '__main__':
+if __name__ == '__main__':                              # Запуск
     init(autoreset=True)
-    links = check_links('links', False)
+    version = '0.7 beta'
+    links = load_links('links', False)
 
     main()
