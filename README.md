@@ -7,6 +7,7 @@ Simple shortcut launcher
 ## Usage
 You need to add shortcut in 'links' folder. You can open it from program.
 > Enter number: links
+
 Or you can add it in programm
 > Enter number: add
 
