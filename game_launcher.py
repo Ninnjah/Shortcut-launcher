@@ -6,6 +6,7 @@ from colorama import Fore, init
 import easyTui as tui
 
 class Json():                                           # Функции JSON
+
     def read(file):                                     ## Чтение JSON
         with open(file, "r", encoding='utf-8') as read_file:
             data = json.load(read_file)
@@ -115,6 +116,10 @@ def remove_shortcut(links_list):                        # Удаление яр�
             print('You must enter a number or "cancel" to cancel deleting..')
             time.sleep(2)
             remove_shortcut(links_list)
+        except IndexError:
+            print('This index does not exists')
+            time.sleep(1)
+            remove_shortcut(links_list)
 
     print(Fore.RED + 'Do you really want to delete "{}"?'.format(
         links_list[index]))
@@ -159,6 +164,42 @@ def sort_links(links_list):                             # Перемещение
         print('You must enter numbers..\n or Enter "cancel" to cancel sort..')
         time.sleep(2)
         sort_links(links_list)
+    except IndexError:
+        print('This index does not exists')
+        time.sleep(1)
+        sort_links(links_list)
+
+def rename_links(links, links_list):                    # Переименование ярлыка
+    index = input('Enter index: ')
+    if index in ['ex', 'cancel', 'stop']:
+        main()
+    else:
+        try:
+            index = int(index)
+            old_name = links[links_list[index]]
+            i = old_name
+            file_ = ''
+            while i[-1] != '.':
+                file_ += i[-1]
+                i = i[:-1]
+            file_ += i[-1]
+            file_ = file_[::-1]
+        except ValueError:
+            print('You must enter a number or "cancel" to cancel deleting..')
+            time.sleep(2)
+            rename_links(links, links_list)
+        except IndexError:
+            print('This index does not exists')
+            time.sleep(1)
+            rename_links(links, links_list)
+    new_name = input('Enter new name: ')
+    new_name += str(file_)
+    os.rename('links\\' + old_name, 'links\\' + new_name)
+    while new_name[-1] != '.':
+        new_name = new_name[:-1]
+    new_name = new_name[:-1]
+    links_list.insert(index, new_name)
+    update_links(links_list)
 
 def run(app):                                           # Запуск приложения
     os.startfile(os.path.join('links', app))
@@ -173,8 +214,9 @@ def main():                                             # Интерфейс
     if len(links_list) > 0:
         print(Fore.CYAN + tui.ol(links_list))
     else:
-        print(Fore.CYAN + tui.ul(["You can add them with 'add' command", "or manualy add shortcuts in 'links' folder\n  You can open folder with 'links' command"]))
-    cmd = input('Enter number: ')
+        print(Fore.CYAN + tui.ul(["You can add them with 'add' command", 
+            "or manualy add shortcuts in 'links' folder\n  You can open folder with 'links' command"]))
+    cmd = input('Enter number: ').lower()
     try:
         cmd = int(cmd)
         print('Starting {}...'.format(links_list[cmd]))
@@ -182,39 +224,39 @@ def main():                                             # Интерфейс
         time.sleep(2)
         main()
     except ValueError:
-        if cmd.lower() in ['ex', 'exit', 'quit', 'x']:
+        if cmd in ['ex', 'exit', 'quit', 'x']:
             print('quiting...')
             time.sleep(.5)
             quit()
-        elif cmd.lower() in ['update', 'refresh', 'upd']:
+        elif cmd in ['update', 'refresh', 'upd']:
             update_links(links_list)
             main()
-        elif cmd.lower() in ['steam']:
+        elif cmd in ['steam']:
             print('Starting {}...'.format(cmd))
             run('sys/steam.lnk')
             time.sleep(2)
             main()
-        elif cmd.lower() in ['epic', 'epic games']:
+        elif cmd in ['epic', 'epic games']:
             print('Starting {}...'.format(cmd))
             run('sys/epic.lnk')
             time.sleep(2)
             main()
-        elif cmd.lower() in ['remove', 'delete', 'rm']:
+        elif cmd in ['remove', 'delete', 'rm']:
             remove_shortcut(links_list)
             main()
-        elif cmd.lower() in ['links', 'lnk', 'folder']:
+        elif cmd in ['links', 'lnk', 'folder']:
             print('Opening {}...'.format(cmd))
             os.system("explorer.exe {}".format(os.getcwd() + '\\links'))
             time.sleep(1)
             main()
-        elif cmd.lower() in ['sort', 'move']:
+        elif cmd in ['sort', 'move']:
             sort_links(links_list)
             main()
-        elif cmd.lower() in ['add', 'create', 'make', 'mk']:
+        elif cmd in ['add', 'create', 'make', 'mk']:
             add_shortcut()
             update_links(links_list)
             main()
-        elif cmd.lower() in ['help']:
+        elif cmd in ['help']:
             os.system('cls||clear')
             command_list = [
                 '"exit" ("quit", "ex", "x")\n\tUsing to quit the program',
@@ -229,14 +271,22 @@ def main():                                             # Интерфейс
             print(Fore.CYAN + tui.ul(command_list))
             input('Press enter to go to main menu')
             main()
+        elif cmd in ['rename']:
+            rename_links(json_[1], json_[0])
+            main()
+
         else:
             print('You must enter a Number..')
             time.sleep(1)
             main()
+    except IndexError:
+        print('This index does not exists')
+        time.sleep(1)
+        main()
 
 if __name__ == '__main__':                              # Запуск
     init(autoreset=True)
     version = '0.7 beta'
     links = load_links('links', False)
 
-    main()
+    main() 
