@@ -1,9 +1,20 @@
 import os
+from os import system
+#from posix import listdir
+import sys
 import time
 import json
 from win32com.client import Dispatch
 from colorama import Fore, init
 import easyTui as tui
+
+#todo
+#todo   1: Добавить категории
+#todo
+#todo   2: Добавить добавление в sys папку
+#todo
+#todo   ~3: Изменить запуск програм на 'start {index}'
+#todo
 
 class Json():                                           # Функции JSON
 
@@ -16,8 +27,8 @@ class Json():                                           # Функции JSON
         with open(file, 'w', encoding='utf-8') as write_file:
             write_file.write(json.dumps(data))
 
-    def config(links_list, links_dict):                 ## Сохранение настроек
-        config_list = [links_list, links_dict]
+    def config(links_list, links_dict, sys_links):      ## Сохранение настроек
+        config_list = [links_list, links_dict, sys_links]
         Json.write('settings.json', config_list)
 
 def load_links(path, refresh):                          # Загрузка ярлыков
@@ -25,48 +36,60 @@ def load_links(path, refresh):                          # Загрузка яр�
     Parsing all links in path folder
     and save into list
     '''
+    links_ = []
+    links = []
+    sys_links = []
+    links_dict={}
     if os.path.exists('settings.json') and refresh == False:
         links_dict = Json.read('settings.json')[1]
-        print(links_dict)
-    elif not os.path.exists('settings.json') or refresh == True:
-        if not os.path.exists(path):
-            os.mkdir(path)
-        else:
-            pass
-        links = os.listdir(path)
-        links_ = []
-        for i in links:
-            if '.url' in i or '.lnk' in i:
-                links_.append(i)
-        if len(links_) == 0:
-            print(Fore.RED + "You don't have any shortcuts in the folder!\n")
-            input('Press enter')
-            Json.write('settings.json', [[],{}])
-            time.sleep(1)
-            main()
-        links = []
-        for i in links_:
-            while i[-1] != '.':
-                i = i[:-1]
-            i = i[:-1]
-            links.append(i)
-
-        links_dict={}
-        for i in range(len(links)):
-            links_dict.setdefault(links[i], links_[i])
-
-        links_list = list(links_dict.keys())
-        Json.config(links_list, links_dict)
-
         return links_dict
+    elif not os.path.exists('settings.json') or refresh == True:
+        for x in path:
+            if not os.path.exists(x):
+                os.mkdir(x)
+            else:
+                pass
+            dirlinks = os.listdir(x)
+            for i in dirlinks:
+                if '.url' in i or '.lnk' in i:
+                    links_.append(i)
+                    if x == 'links\\sys': 
+                        while i[-1] != '.':
+                            i = i[:-1]
+                        i = i[:-1]
+                        sys_links.append(i.lower())
+            if len(links_) == 0:
+                if x != 'sys':
+                    print(Fore.RED + "You don't have any shortcuts in the folder!\n")
+                    input('Press enter')
+                    Json.write('settings.json', [[],{}])
+                    time.sleep(1)
+                    main()
+            for i in links_:
+                value = i
+                while i[-1] != '.':
+                    i = i[:-1]
+                i = i[:-1]
+                links.append(i)
+                links_dict.setdefault(i, value)
 
-def add_shortcut():                                     # Создание ярлыка
+            links = list(set(links))
+
+        links_list = []
+        for i in list(links_dict.keys()):
+            if i.lower() not in sys_links:
+                links_list.append(i)
+        Json.config(links_list, links_dict, sys_links)
+
+        return [links_dict, sys_links]
+
+def add_shortcut(path):                                 # Создание ярлыка
     os.system('cls||clear')
     print(tui.label('Adding new shortcut'))
     print(Fore.CYAN + 'Enter path to .exe file: ', end='')
     wDir = input()
     if os.path.exists(wDir):
-        if '.exe' in wDir:
+        if os.path.isfile(wDir):
             target = wDir
             wDir = ''
             i = target
@@ -85,7 +108,7 @@ def add_shortcut():                                     # Создание яр�
                 link = link[:-1]
             link = link[:-1]
 
-            path = os.path.join("links\\{}.lnk".format(link))
+            path = os.path.join("{}\\{}.lnk".format(path, link))
             icon = target
 
             shell = Dispatch('WScript.Shell')
@@ -94,16 +117,26 @@ def add_shortcut():                                     # Создание яр�
             shortcut.WorkingDirectory = wDir
             shortcut.IconLocation = icon
             shortcut.save()
+            target = ''
+            if 'sys' in path:
+                for i in wDir:
+                    while i[-1] != '.':
+                        i = i[:-1]
+                    i = i[:-1]
+                    while i[-1] != '\\':
+                        target.append(i[-1])
+                        i = i[:-1]
+            return target
         else:
             print(Fore.RED + "Wrong path!\npath must include .exe\n or Enter 'cancel' to cancel add..")
             time.sleep(1)
-            add_shortcut()
+            add_shortcut(path)
     elif wDir in ['exit', 'cancel', 'stop', 'ex', 'x']:
         main()
     else:
         print(Fore.RED + "This path doesn't exists!\n or Enter 'cancel' to cancel add..")
         time.sleep(1)
-        add_shortcut()
+        add_shortcut(path)
 
 def remove_shortcut(links_list):                        # Удаление ярлыка
     index = input('Enter index: ')
@@ -137,8 +170,8 @@ def remove_shortcut(links_list):                        # Удаление яр�
         time.sleep(1)
 
 def update_links(links_list):                           # Обновление списка ярлыков
-    links = load_links('links', True)
-    new_links_list = list(links.keys())
+    links = load_links(['links', 'links\\sys'], True)
+    new_links_list = list(links[0].keys())
     result = list(set(new_links_list) - set(links_list))
     for i in result:
         links_list.append(i)
@@ -146,7 +179,20 @@ def update_links(links_list):                           # Обновление �
     for i in result:
         links_list.pop(links_list.index(i))
     result = None
-    Json.config(links_list, links)
+    try:
+        result = ''
+        sys_links = []
+        for i in os.listdir('links\\sys'):
+            while i[-1] != '.':
+                i = i[:-1]
+            i = i[:-1]
+            while i [-1] != '\\':
+                result.append(i)
+                i = i[:-1]
+            sys_links.append(result.lower())
+    except:
+        sys_links = links[1]
+    Json.config(links_list, links[0], sys_links)
 
 def sort_links(links_list):                             # Перемещение ярлыков в списке
     from_ = input('from index: ')
@@ -201,13 +247,17 @@ def rename_links(links, links_list):                    # Переименова
     links_list.insert(index, new_name)
     update_links(links_list)
 
-def run(app):                                           # Запуск приложения
-    os.startfile(os.path.join('links', app))
-    
+def run(app, path):                                           # Запуск приложения
+    os.startfile(os.path.join(path, app))
+
 def main():                                             # Интерфейс
     json_ = Json.read('settings.json')
-    links_list = json_[0]
+    links_list = []
+    sys_links = json_[2]
     links = json_[1]
+    for i in json_[0]:
+        if i.lower() not in sys_links:
+            links_list.append(i)
 
     os.system('cls||clear')
     print(tui.label('Game Launcher v{}'.format(version)))
@@ -220,43 +270,40 @@ def main():                                             # Интерфейс
     try:
         cmd = int(cmd)
         print('Starting {}...'.format(links_list[cmd]))
-        run(links[links_list[cmd]])
+        run(links[links_list[cmd]], 'links')
         time.sleep(2)
         main()
     except ValueError:
-        if cmd in ['ex', 'exit', 'quit', 'x']:
+        cmd = cmd.split()
+        if cmd[0] in ['ex', 'exit', 'quit', 'x']:
             print('quiting...')
             time.sleep(.5)
             quit()
-        elif cmd in ['update', 'refresh', 'upd']:
+        elif cmd[0] in ['update', 'refresh', 'upd']:
             update_links(links_list)
             main()
-        elif cmd in ['steam']:
-            print('Starting {}...'.format(cmd))
-            run('sys/steam.lnk')
-            time.sleep(2)
-            main()
-        elif cmd in ['epic', 'epic games']:
-            print('Starting {}...'.format(cmd))
-            run('sys/epic.lnk')
-            time.sleep(2)
-            main()
-        elif cmd in ['remove', 'delete', 'rm']:
+        elif cmd[0] in ['remove', 'delete', 'rm']:
             remove_shortcut(links_list)
             main()
-        elif cmd in ['links', 'lnk', 'folder']:
-            print('Opening {}...'.format(cmd))
+        elif cmd[0] in ['links', 'lnk', 'folder']:
+            print('Opening {}...'.format(cmd[0]))
             os.system("explorer.exe {}".format(os.getcwd() + '\\links'))
             time.sleep(1)
             main()
-        elif cmd in ['sort', 'move']:
+        elif cmd[0] in ['sort', 'move']:
             sort_links(links_list)
             main()
-        elif cmd in ['add', 'create', 'make', 'mk']:
-            add_shortcut()
+        elif cmd[0] in ['add', 'create', 'make', 'mk']:
+            if len(cmd) == 0:
+                add_shortcut('links')
+            elif cmd[1] == 'sys':
+                sys_links.append(add_shortcut('links\\sys'))
+            else:
+                add_shortcut('links')
             update_links(links_list)
+            Json.config(links_list, links[0], sys_links)
             main()
-        elif cmd in ['help']:
+        elif cmd[0] in ['help']:
             os.system('cls||clear')
             command_list = [
                 '"exit" ("quit", "ex", "x")\n\tUsing to quit the program',
@@ -264,17 +311,30 @@ def main():                                             # Интерфейс
                 '"remove" ("delete", "rm")\n\tUsing to delete app shortcut',
                 '"add" ("create", "make", "mk")\n\tUsing to add new shortcut',
                 '"sort" ("move")\n\tUsing to move shortcut in list',
+                '"rename"\n\tUsing to rename shortcuts in list',
                 '"links" ("folder", "lnk")\n\tUsing to open shortcuts folder',
                 '"steam"\n\tUsing to start steam from "links/sys/steam.lnk"',
-                '"epic" ("epic games")\n\tUsing to start Epic games store from "links/sys/epic.lnk"',]
+                '"epic" ("epic games")\n\tUsing to start Epic games store from "links/sys/epic.lnk"',
+                ]
             print(tui.label('Help'))
             print(Fore.CYAN + tui.ul(command_list))
             input('Press enter to go to main menu')
             main()
-        elif cmd in ['rename']:
+        elif cmd[0] in ['rename']:
             rename_links(json_[1], json_[0])
             main()
-
+        elif cmd[0] in ['sys']:
+            os.system('cls||clear')
+            print(tui.label('Sys apps'))
+            print(tui.ul(sys_links))
+            input()
+            main()
+        elif cmd[0] in sys_links:
+            cmd = str(cmd[0])
+            print('Starting {}...'.format(cmd))
+            run(cmd, 'links\\sys')
+            time.sleep(2)
+            main()
         else:
             print('You must enter a Number..')
             time.sleep(1)
@@ -287,6 +347,6 @@ def main():                                             # Интерфейс
 if __name__ == '__main__':                              # Запуск
     init(autoreset=True)
     version = '0.7 beta'
-    links = load_links('links', False)
+    links = load_links(['links', 'links\\sys'], False)
 
     main() 
