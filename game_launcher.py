@@ -1,35 +1,32 @@
 import os
-from os import system
-#from posix import listdir
-import sys
 import time
 import json
-from win32com.client import Dispatch
 from colorama import Fore, init
 import easyTui as tui
 
-#todo
+#todo:
 #todo   1: Добавить категории
 #todo
-#todo   2: Добавить добавление в sys папку
-#todo
-#todo   ~3: Изменить запуск програм на 'start {index}'
+#todo   ~2: Изменить запуск програм на 'start {index}'
 #todo
 
-class Json():                                           # Функции JSON
+###### Функции JSON ######
+## Чтение JSON
+def Jsonread(file):                               
+    with open(file, "r", encoding='utf-8') as read_file:
+        data = json.load(read_file)
+    return data
 
-    def read(file):                                     ## Чтение JSON
-        with open(file, "r", encoding='utf-8') as read_file:
-            data = json.load(read_file)
-        return data
+## Запись JSON
+def Jsonwrite(file, data):                        
+    with open(file, 'w', encoding='utf-8') as write_file:
+        write_file.write(json.dumps(data))
 
-    def write(file, data):                              ## Запись JSON
-        with open(file, 'w', encoding='utf-8') as write_file:
-            write_file.write(json.dumps(data))
-
-    def config(links_list, links_dict, sys_links):      ## Сохранение настроек
-        config_list = [links_list, links_dict, sys_links]
-        Json.write('settings.json', config_list)
+## Сохранение настроек
+def Jsonconfig(links_list, links_dict, sys_links):
+    config_list = [links_list, links_dict, sys_links]
+    Jsonwrite('settings.json', config_list)
+###### Функции JSON ######
 
 def load_links(path, refresh):                          # Загрузка ярлыков
     '''
@@ -41,7 +38,7 @@ def load_links(path, refresh):                          # Загрузка яр�
     sys_links = []
     links_dict={}
     if os.path.exists('settings.json') and refresh == False:
-        links_dict = Json.read('settings.json')[1]
+        links_dict = Jsonread('settings.json')[1]
         return links_dict
     elif not os.path.exists('settings.json') or refresh == True:
         for x in path:
@@ -62,7 +59,7 @@ def load_links(path, refresh):                          # Загрузка яр�
                 if x != 'sys':
                     print(Fore.RED + "You don't have any shortcuts in the folder!\n")
                     input('Press enter')
-                    Json.write('settings.json', [[],{}])
+                    Jsonwrite('settings.json', [[],{}])
                     time.sleep(1)
                     main()
             for i in links_:
@@ -79,7 +76,7 @@ def load_links(path, refresh):                          # Загрузка яр�
         for i in list(links_dict.keys()):
             if i.lower() not in sys_links:
                 links_list.append(i)
-        Json.config(links_list, links_dict, sys_links)
+        Jsonconfig(links_list, links_dict, sys_links)
 
         return [links_dict, sys_links]
 
@@ -124,7 +121,7 @@ def add_shortcut(path):                                 # Создание яр�
                         i = i[:-1]
                     i = i[:-1]
                     while i[-1] != '\\':
-                        target.append(i[-1])
+                        target += i[-1]
                         i = i[:-1]
             return target
         else:
@@ -162,7 +159,7 @@ def remove_shortcut(links_list):                        # Удаление яр�
         print('Removing {}...'.format(links_list[index]))
         os.remove('links\\' + links[links_list[index]])
         links_list.pop(index)
-        Json.config(links_list, links)
+        Jsonconfig(links_list, links)
         time.sleep(1)
         main()
     else:
@@ -187,12 +184,12 @@ def update_links(links_list):                           # Обновление �
                 i = i[:-1]
             i = i[:-1]
             while i [-1] != '\\':
-                result.append(i)
+                result += i
                 i = i[:-1]
             sys_links.append(result.lower())
     except:
         sys_links = links[1]
-    Json.config(links_list, links[0], sys_links)
+    Jsonconfig(links_list, links[0], sys_links)
 
 def sort_links(links_list):                             # Перемещение ярлыков в списке
     from_ = input('from index: ')
@@ -203,9 +200,11 @@ def sort_links(links_list):                             # Перемещение
         main()
     try:
         from_, to_ = int(from_), int(to_)
-        links_list[from_], links_list[to_] = links_list[to_], links_list[from_]
-        
-        Json.config(links_list, links)
+        link = links_list[from_]
+        links_list.remove(link)
+        links_list.insert(to_, link)
+        sys_links = Jsonread('settings.json')[2]
+        Jsonconfig(links_list, links, sys_links)
     except ValueError:
         print('You must enter numbers..\n or Enter "cancel" to cancel sort..')
         time.sleep(2)
@@ -247,11 +246,11 @@ def rename_links(links, links_list):                    # Переименова
     links_list.insert(index, new_name)
     update_links(links_list)
 
-def run(app, path):                                           # Запуск приложения
+def run(app, path):                                     # Запуск приложения
     os.startfile(os.path.join(path, app))
 
 def main():                                             # Интерфейс
-    json_ = Json.read('settings.json')
+    json_ = Jsonread('settings.json')
     links_list = []
     sys_links = json_[2]
     links = json_[1]
@@ -294,14 +293,13 @@ def main():                                             # Интерфейс
             sort_links(links_list)
             main()
         elif cmd[0] in ['add', 'create', 'make', 'mk']:
-            if len(cmd) == 0:
-                add_shortcut('links')
-            elif cmd[1] == 'sys':
-                sys_links.append(add_shortcut('links\\sys'))
-            else:
+            try: 
+                if cmd[1] == 'sys':
+                    sys_links.append(add_shortcut('links\\sys'))
+            except IndexError:
                 add_shortcut('links')
             update_links(links_list)
-            Json.config(links_list, links[0], sys_links)
+            Jsonconfig(links_list, links[0], sys_links)
             main()
         elif cmd[0] in ['help']:
             os.system('cls||clear')
@@ -310,18 +308,19 @@ def main():                                             # Интерфейс
                 '"update" ("refresh", "upd")\n\tUsing to update shortcut list',
                 '"remove" ("delete", "rm")\n\tUsing to delete app shortcut',
                 '"add" ("create", "make", "mk")\n\tUsing to add new shortcut',
+                '"add sys"\n\tUsing to add new sys shortcut',
                 '"sort" ("move")\n\tUsing to move shortcut in list',
                 '"rename"\n\tUsing to rename shortcuts in list',
                 '"links" ("folder", "lnk")\n\tUsing to open shortcuts folder',
-                '"steam"\n\tUsing to start steam from "links/sys/steam.lnk"',
-                '"epic" ("epic games")\n\tUsing to start Epic games store from "links/sys/epic.lnk"',
+                '"sys"\n\tUsing to open sys shortcuts folder',
+                '"shortcut name"\n\tUsing to start sys shortcut with "shortcutname"',
                 ]
             print(tui.label('Help'))
             print(Fore.CYAN + tui.ul(command_list))
             input('Press enter to go to main menu')
             main()
         elif cmd[0] in ['rename']:
-            rename_links(json_[1], json_[0])
+            rename_links(links, links_list)
             main()
         elif cmd[0] in ['sys']:
             os.system('cls||clear')
@@ -335,6 +334,7 @@ def main():                                             # Интерфейс
             run(cmd, 'links\\sys')
             time.sleep(2)
             main()
+        
         else:
             print('You must enter a Number..')
             time.sleep(1)
